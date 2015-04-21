@@ -2,6 +2,7 @@ package org.poly2tri.geometry.polygon;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 
 import org.poly2tri.triangulation.Triangulatable;
@@ -233,6 +234,25 @@ public class Polygon implements Triangulatable
      */
     public void prepareTriangulation( TriangulationContext<?> tcx )
     {
+        int hint = _points.size();
+        if(_steinerPoints != null) {
+            hint += _steinerPoints.size();
+        }
+        if( _holes != null ) {
+            for (Polygon p : _holes) {
+                hint += p.pointCount();
+            }
+        }
+        HashMap<TriangulationPoint, TriangulationPoint> uniquePts = new HashMap<TriangulationPoint, TriangulationPoint>(hint);
+        TriangulationPoint.mergeInstances(uniquePts, _points);
+        if(_steinerPoints != null) {
+            TriangulationPoint.mergeInstances(uniquePts, _steinerPoints);
+        }
+        if( _holes != null ) {
+            for (Polygon p : _holes) {
+                TriangulationPoint.mergeInstances(uniquePts, p._points);
+            }
+        }
         if( m_triangles == null )
         {
             m_triangles = new ArrayList<DelaunayTriangle>( _points.size() );
@@ -241,15 +261,12 @@ public class Polygon implements Triangulatable
         {
             m_triangles.clear();
         }
-
         // Outer constraints
         for( int i = 0; i < _points.size()-1 ; i++ )
         {
             tcx.newConstraint( _points.get( i ), _points.get( i+1 ) );
         }
         tcx.newConstraint( _points.get( 0 ), _points.get( _points.size()-1 ) );
-        tcx.addPoints( _points );
-
         // Hole constraints
         if( _holes != null )
         {
@@ -259,15 +276,10 @@ public class Polygon implements Triangulatable
                 {
                     tcx.newConstraint( p._points.get( i ), p._points.get( i+1 ) );
                 }
-                tcx.newConstraint( p._points.get( 0 ), p._points.get( p._points.size()-1 ) );            
-                tcx.addPoints( p._points );
+                tcx.newConstraint( p._points.get( 0 ), p._points.get( p._points.size()-1 ) );
             }
         }
-
-        if( _steinerPoints != null )
-        {
-            tcx.addPoints( _steinerPoints );
-        }
+        tcx.addPoints(uniquePts.keySet());
     }
 
 }
